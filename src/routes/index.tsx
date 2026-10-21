@@ -1,31 +1,347 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useRef, useState } from 'react'
-import { ArrowUpRight, ArrowRight, Bell, BookOpen, Camera, Check, ChevronDown, ChevronRight, CircleHelp, CloudUpload, ImagePlus, Leaf, Menu, MessageCircle, ScanLine, Search, Send, ShieldCheck, Sparkles, Sprout, Sun, X } from 'lucide-react'
+import { useState } from 'react'
+import { ArrowRight, BookOpen, Camera, CircleHelp, ImagePlus, Leaf, Menu, MessageCircle, ScanLine, Search, Send, ShieldCheck, Sparkles, Sprout, Sun, X } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { diseases } from '@/lib/diseases'
+import { Marquee } from '@/components/ui/marquee'
+
 export const Route = createFileRoute('/')({ component: Home })
-type Assessment = {title:string;crop:string;certainty:string;summary:string;symptoms:string[];treatment:string[];prevention:string[]}
-type Message = {role:'user'|'assistant';text:string}
+
+type Message = { role: 'user' | 'assistant'; text: string }
+
 function Home() {
- const [page,setPage]=useState('Overview'),[menu,setMenu]=useState(false),[crop,setCrop]=useState('Auto-detect crop'),[image,setImage]=useState(''),[fileName,setFileName]=useState(''),[notes,setNotes]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false),[result,setResult]=useState<Assessment|null>(null),[chat,setChat]=useState(false),[messages,setMessages]=useState<Message[]>([]),[question,setQuestion]=useState(''),[chatBusy,setChatBusy]=useState(false),[chatError,setChatError]=useState(''),[query,setQuery]=useState(''),[guide,setGuide]=useState<typeof diseases[number]|null>(null),[help,setHelp]=useState(false)
- const fileInput=useRef<HTMLInputElement>(null),cameraInput=useRef<HTMLInputElement>(null),scanner=useRef<HTMLElement>(null)
- function navigate(next:string){setMenu(false);if(next==='AI Assistant'){setChat(true);return}setPage(next);if(next==='Disease Detector')setTimeout(()=>scanner.current?.scrollIntoView({behavior:'smooth',block:'start'}),50)}
- function selectFile(file?:File){if(!file)return;setError('');if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>4*1024*1024){setError('Choose a JPEG, PNG, or WebP photo smaller than 4 MB.');return}const reader=new FileReader();reader.onload=()=>{setImage(String(reader.result));setFileName(file.name);setResult(null)};reader.readAsDataURL(file)}
- async function analyze(){if(!image){fileInput.current?.click();return}setBusy(true);setError('');try{const r=await fetch('/api/crop-ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'scan',image,crop,notes})});const data=await r.json();if(!r.ok)throw new Error(data.error);setResult(data.result)}catch(e){setError(e instanceof Error?e.message:'Something went wrong. Please try again.')}finally{setBusy(false)}}
- async function send(text=question){if(!text.trim()||chatBusy)return;const next:Message[]=[...messages,{role:'user',text:text.trim()}];setMessages(next);setQuestion('');setChatBusy(true);setChatError('');try{const r=await fetch('/api/crop-ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'chat',messages:next.slice(-20),context:result?JSON.stringify(result):''})});const data=await r.json();if(!r.ok)throw new Error(data.error);setMessages([...next,{role:'assistant',text:data.reply}])}catch(e){setChatError(e instanceof Error?e.message:'Unable to send. Try again.');setQuestion(text);setMessages(next.slice(0,-1))}finally{setChatBusy(false)}}
- const filtered=diseases.filter(d=>(d.name+' '+d.crop).toLowerCase().includes(query.toLowerCase()))
- return <div className="app-shell">
- <aside className={`sidebar ${menu?'is-open':''}`}><a href="/" className="brand"><span className="brand-mark"><Sprout size={25}/></span>cropwise<span className="brand-dot">.</span></a><div className="workspace-label">YOUR GROWING COMPANION</div><nav>{[{name:'Overview',icon:Sprout},{name:'Disease Detector',icon:ScanLine},{name:'Disease Library',icon:BookOpen},{name:'AI Assistant',icon:Sparkles}].map(({name,icon:Icon})=><button key={name} className={page===name?'nav-item active':'nav-item'} onClick={()=>navigate(name)}><Icon size={19}/>{name}{name==='AI Assistant'?<span className="new-label">AI</span>:null}</button>)}</nav><div className="sidebar-bottom"><div className="grow-card"><span className="grow-icon"><Leaf size={21}/></span><h3>A little care.<br/>A better harvest.</h3><p>Your crops have a story.<br/>Let’s help them thrive.</p><span className="mini-leaf"><Sprout size={76} strokeWidth={1}/></span></div><button className="nav-item" onClick={()=>setHelp(true)}><CircleHelp size={19}/>Help & getting started<ArrowUpRight size={15}/></button><div className="guest"><span className="avatar">G</span><div><strong>Guest grower</strong><small>Let’s grow together</small></div><Leaf size={17}/></div></div></aside>
- <div className="main-shell"><header className="topbar"><div className="breadcrumb"><button className="mobile-menu" aria-label="Open navigation" onClick={()=>setMenu(!menu)}><Menu/></button><span>Workspace</span><ChevronRight size={14}/><strong>{page}</strong></div><div className="top-actions"><span className="live-dot"/> Your crop health companion <button aria-label="Crop health tips" onClick={()=>setHelp(true)}><Bell size={18}/><i/></button><span className="avatar small">G</span></div></header>
- <main><div className="page-heading"><div><div className="eyebrow"><Sun size={15}/> GOOD THINGS START WITH HEALTHY CROPS</div><h1>{page==='Disease Library'?'A little knowledge. A healthier field.':page==='Disease Detector'?'Let’s take a closer look.':'A healthier crop starts here.'}</h1><p>{page==='Disease Library'?'Explore common symptoms, treatment options, and ways to prevent disease.':'Spot the signs early. Understand the problem. Grow with confidence.'}</p></div><span className="nature-tag"><span/> Rooted in better growing</span></div>
- {page==='Overview'&&<><section className="hero"><img src="/.netlify/images?url=/img/crop-hero.png&w=1500&fm=webp" alt="Sunlight falling on fresh green tomato leaves"/><div className="hero-shade"/><div className="hero-copy"><span className="hero-tag"><Sparkles size={14}/> POWERED BY AI. INSPIRED BY NATURE.</span><h2>Small signs.<br/>Big possibilities.</h2><p>Turn a photo into a first step toward healthier crops.<br className="desktop-break"/> Get insights and a clear path forward.</p><button className="light-button" onClick={()=>navigate('Disease Detector')}>Check your crop <ArrowUpRight size={17}/></button></div><div className="hero-note"><span><Leaf size={17}/></span><div>Healthy plants. Happy harvests.<small>A little attention makes a world of difference.</small></div></div></section><div className="feature-strip"><div><span><ScanLine/></span><section><strong>A photo is all it takes</strong><p>Simple, image-based assessment</p></section></div><div><span><Sprout/></span><section><strong>From insight to action</strong><p>Practical care & prevention guidance</p></section></div><div><span><MessageCircle/></span><section><strong>A companion, anytime</strong><p>Ask your personal AI assistant</p></section></div></div></>}
- {page!=='Disease Library'&&<div className="work-grid"><section className="scanner-panel panel" ref={scanner}><div className="section-heading"><div><span className="section-kicker">LET’S GET TO THE ROOT OF IT</span><h2>Check your crop’s health <Leaf size={20}/></h2><p>Upload a clear photo. We’ll help you understand what’s happening.</p></div><span className="step-label">01 / UPLOAD</span></div><div className="scan-fields"><label htmlFor="crop">Select your crop <span>(optional)</span></label><div className="select-wrap"><Sprout size={17}/><select id="crop" value={crop} onChange={e=>setCrop(e.target.value)}>{['Auto-detect crop','Tomato','Rice','Maize','Wheat','Potato','Cucumber','Cotton','Grape','Other crop'].map(c=><option key={c}>{c}</option>)}</select><ChevronDown size={16}/></div></div><input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={e=>selectFile(e.target.files?.[0])}/><input ref={cameraInput} type="file" accept="image/*" capture="environment" hidden onChange={e=>selectFile(e.target.files?.[0])}/><div className={`drop-zone ${image?'has-image':''}`} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();selectFile(e.dataTransfer.files[0])}}>{image?<><img src={image} alt="Your crop for assessment"/><button className="remove-photo" aria-label="Remove photo" onClick={()=>{setImage('');setResult(null);if(fileInput.current)fileInput.current.value=''}}><X size={16}/></button><strong>{fileName}</strong><button className="text-button" onClick={()=>fileInput.current?.click()}>Choose a different photo</button></>:<><span className="upload-icon"><CloudUpload size={28} strokeWidth={1.5}/><span><Leaf size={10}/></span></span><h3>Drop your crop photo here</h3><p>or <button className="inline-link" onClick={()=>fileInput.current?.click()}>browse files</button> to upload</p><small>JPG, PNG or WEBP · Up to 4 MB</small><span className="or-divider">or</span><button className="camera-button" onClick={()=>cameraInput.current?.click()}><Camera size={16}/> Take a photo</button></>}</div>{image&&<label className="notes-label">What have you noticed?<textarea value={notes} onChange={e=>setNotes(e.target.value)} maxLength={1500} placeholder="For example: yellow spots on lower leaves for three days…"/></label>}<div className="photo-tip"><Sun size={15}/><span>A close-up leaf photo in natural light works best.</span><CircleHelp size={14}/></div>{error&&<p role="alert" className="error-message">{error}</p>}<button className="primary-button analyze" disabled={busy} onClick={analyze}><ScanLine size={18}/>{busy?'Examining your crop…':'Analyze crop'}{!busy&&<ArrowRight size={17}/>}</button>{busy&&<div className="assessment-loading" aria-live="polite"><span/><span/><p>Looking at visible symptoms and possible causes…</p></div>}{result&&<div className="assessment" aria-live="polite"><span className="section-kicker">YOUR CROP ASSESSMENT</span><h2>{result.title}</h2><span className="assessment-badge">{result.crop} · {result.certainty} certainty</span><p>{result.summary}</p>{(['symptoms','treatment','prevention'] as const).map(key=><section key={key}><h3>{key==='treatment'?'What to do next':key==='prevention'?'Prevent it spreading':'Visible symptoms'}</h3><ul>{result[key].map((t,i)=><li key={i}>{t}</li>)}</ul></section>)}<p className="assessment-disclaimer">AI guidance is a starting point. Confirm uncertain or serious problems with a local agricultural expert.</p><button className="text-button" onClick={()=>setChat(true)}>Discuss this with your assistant <ArrowRight size={16}/></button></div>}<div className="privacy-note"><ShieldCheck size={13}/> Your photo is used for this assessment and isn’t saved.</div></section>
- <aside className="right-column"><section className="assistant-card"><div className="assistant-top"><span className="assistant-icon"><Sparkles size={22}/></span><span className="available"><span/> HERE TO HELP</span></div><h2>A growing companion.<br/>Just for you.</h2><p>From unusual leaf spots to everyday crop care, your AI assistant is here to help.</p><div className="example-bubble">“Why are my tomato leaves turning yellow?”</div><button onClick={()=>setChat(true)}>Let’s talk crops <ArrowUpRight size={17}/></button><div className="assistant-caption"><span/> Personal guidance, whenever you need it</div></section><section className="tips-card panel"><div className="tips-heading"><span><Sun size={18}/></span><strong>A field note</strong><span className="tiny-label">GROW SMARTER</span></div><h3>Catch it early. Keep it healthy.</h3><p>Check the undersides of leaves, too. Early signs of pests and disease often hide there.</p><button className="text-button" onClick={()=>setHelp(true)}>More growing tips <ArrowRight size={15}/></button></section></aside></div>}
- <section className="library-section"><div className="library-heading"><div><span className="section-kicker">KNOW WHAT TO LOOK FOR</span><h2>{page==='Disease Library'?'Explore the disease library':'Common crop concerns'}</h2><p>A little awareness goes a long way. Get to know the signs.</p></div>{page==='Disease Library'?<label className="search-field"><Search size={17}/><input aria-label="Search disease library" placeholder="Search crops or diseases" value={query} onChange={e=>setQuery(e.target.value)}/></label>:<button className="text-button" onClick={()=>navigate('Disease Library')}>Explore disease library <ArrowUpRight size={16}/></button>}</div><div className="disease-grid">{filtered.map((d,i)=><button className="disease-card" key={d.name} onClick={()=>setGuide(d)}><div className={`crop-art crop-art-${i}`}><img src={`/.netlify/images?url=/img/${d.image}.jpg&w=500&fm=webp`} alt={`${d.crop} crop`} loading="lazy"/><span>{d.crop}</span></div><div className="disease-copy"><small>{d.type}</small><h3>{d.name}<ArrowUpRight size={17}/></h3><p>Signs, care & prevention</p></div></button>)}</div>{filtered.length===0&&<p className="empty-state">No matching guides yet. Ask your AI assistant about this crop or disease.</p>}</section><footer><span><Sprout size={15}/> Made for the people who grow.</span><span>AI insights support, and don’t replace, local expert advice.</span></footer>
- </main></div>
- <button className="floating-chat" aria-label="Open AI assistant" onClick={()=>setChat(true)}><Sparkles size={21}/><span>Ask Cropwise</span><span className="chat-dot"/></button>
- <Dialog open={!!guide} onOpenChange={open=>{if(!open)setGuide(null)}}><DialogContent className="guide-modal"><DialogHeader><DialogTitle>{guide?.name}</DialogTitle><DialogDescription>{guide?.crop} · {guide?.type} · General field guide</DialogDescription></DialogHeader>{guide&&<><h3>Signs to look for</h3><p>{guide.symptoms}</p><h3>Care & treatment</h3><p>{guide.care}</p><h3>Prevention</h3><p>{guide.prevention}</p><p className="assessment-disclaimer">Similar symptoms can have different causes. Confirm the cause before treating.</p><button className="primary-button" onClick={()=>{setGuide(null);setChat(true);setQuestion(`How can I manage ${guide.name} in ${guide.crop}?`)}}>Ask about this condition <Sparkles size={16}/></button></>}</DialogContent></Dialog>
- <Dialog open={help} onOpenChange={setHelp}><DialogContent><DialogHeader><DialogTitle>A good photo. A better first step.</DialogTitle><DialogDescription>Getting started with Cropwise</DialogDescription></DialogHeader><div className="help-list"><p><Camera/> Photograph an affected leaf in natural light. Include both sides if you can.</p><p><ImagePlus/> Upload one clear photo and describe the crop, symptoms, and recent weather.</p><p><Check/> Review possible causes and start with the recommended cultural care steps.</p><p><MessageCircle/> Ask the assistant follow-up questions. Conversations and photos last only for this session.</p><p><ShieldCheck/> No photo tool can identify every disease. For severe or spreading symptoms, consult a local extension specialist.</p></div></DialogContent></Dialog>
- <Dialog open={chat} onOpenChange={setChat}><DialogContent className="chat-modal"><DialogHeader><DialogTitle><span className="assistant-icon"><Sparkles size={21}/></span> Your Cropwise assistant</DialogTitle><DialogDescription>A little guidance for whatever’s growing. This conversation lasts for this session.</DialogDescription></DialogHeader><div className="chat-messages" aria-live="polite"><div className="assistant-message">Hello, grower. Tell me what’s happening in your field or garden. What crop are you growing, and what have you noticed?{result&&' I can also help you understand your latest crop assessment.'}</div>{!messages.length&&<div className="suggestions">{['Why are my leaves turning yellow?','How can I prevent fungal diseases?','Help me understand my assessment'].map(t=><button key={t} onClick={()=>send(t)}>{t}<ArrowUpRight size={14}/></button>)}</div>}{messages.map((m,i)=><div className={`${m.role}-message`} key={i}>{m.text}</div>)}{chatBusy&&<div className="assistant-message thinking">Finding a helpful answer…</div>}</div>{chatError&&<p className="error-message" role="alert">{chatError}</p>}<form className="chat-form" onSubmit={e=>{e.preventDefault();send()}}><input aria-label="Your question" placeholder="Ask anything about your crops…" value={question} maxLength={6000} onChange={e=>setQuestion(e.target.value)}/><button aria-label="Send question" disabled={chatBusy||!question.trim()}><Send size={19}/></button></form><small className="chat-disclaimer">AI can make mistakes. Check treatment decisions with a local expert.</small></DialogContent></Dialog>
- </div>
+  const [page, setPage] = useState('Overview')
+  const [menu, setMenu] = useState(false)
+  const [query, setQuery] = useState('')
+  const [chat, setChat] = useState(false)
+  const [messages, setMessages] = useState<Message[]>([
+    { role: 'assistant', text: 'Hello, grower. Tell me what’s happening in your field or garden. What crop are you growing, and what have you noticed?' },
+  ])
+  const [question, setQuestion] = useState('')
+  const [chatBusy, setChatBusy] = useState(false)
+
+  const filtered = diseases.filter((d) => `${d.name} ${d.crop}`.toLowerCase().includes(query.toLowerCase()))
+
+  function navigate(next: string) {
+    setMenu(false)
+    if (next === 'AI Assistant') {
+      setChat(true)
+      return
+    }
+    setPage(next)
+  }
+
+  async function send(text = question) {
+    if (!text.trim() || chatBusy) return
+
+    const nextMessages = [...messages, { role: 'user', text: text.trim() }]
+    setMessages(nextMessages)
+    setQuestion('')
+    setChatBusy(true)
+
+    try {
+      const response = await fetch('/api/crop-ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'chat', messages: nextMessages }),
+      })
+
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Unable to send.')
+
+      setMessages([...nextMessages, { role: 'assistant', text: data.reply }])
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to send. Try again.'
+      setMessages([...nextMessages, { role: 'assistant', text: message }])
+    } finally {
+      setChatBusy(false)
+    }
+  }
+
+  return (
+    <div className="app-shell">
+      <aside className={`sidebar ${menu ? 'is-open' : ''}`}>
+        <a href="/" className="brand">
+          <span className="brand-mark"><Sprout size={25} /></span>
+          cropwise<span className="brand-dot">.</span>
+        </a>
+
+        <div className="workspace-label">YOUR GROWING COMPANION</div>
+
+        <nav>
+          {['Overview', 'Disease Detector', 'Disease Library', 'AI Assistant'].map((name) => (
+            <button
+              key={name}
+              className={page === name || (name === 'AI Assistant' && chat) ? 'nav-item active' : 'nav-item'}
+              onClick={() => navigate(name)}
+            >
+              <span className="nav-icon">
+                {name === 'Overview' ? <Sun size={18} /> : name === 'Disease Detector' ? <ScanLine size={18} /> : name === 'Disease Library' ? <BookOpen size={18} /> : <MessageCircle size={18} />}
+              </span>
+              {name}
+              {name === 'AI Assistant' && <span className="new-label">AI</span>}
+            </button>
+          ))}
+        </nav>
+
+        <div className="sidebar-bottom">
+          <div className="grow-card">
+            <span className="grow-icon"><Leaf size={18} /></span>
+            <h3>A little care.</h3>
+            <p>Your crops have a story. Let’s help them thrive.</p>
+            <span className="mini-leaf"><Sprout size={18} strokeWidth={1.2} /></span>
+          </div>
+          <button className="nav-item" onClick={() => setChat(true)}>
+            <span className="nav-icon"><CircleHelp size={18} /></span>
+            Help & getting started
+            <ArrowRight size={15} />
+          </button>
+        </div>
+      </aside>
+
+      <div className="main-shell">
+        <header className="topbar">
+          <div className="breadcrumb">
+            <button className="mobile-menu" aria-label="Open navigation" onClick={() => setMenu(!menu)}>
+              <Menu />
+            </button>
+            <span>Workspace</span>
+            <ChevronRight size={14} />
+            <strong>{page}</strong>
+          </div>
+
+          <div className="top-actions">
+            <span className="live-dot" />
+            Your crop health companion
+            <button aria-label="Crop health tips" onClick={() => setChat(true)}>
+              <Sparkles size={18} />
+            </button>
+            <span className="avatar small">G</span>
+          </div>
+        </header>
+
+        <main>
+          <div className="page-heading">
+            <div>
+              <div className="eyebrow"><Sun size={15} /> GOOD THINGS START WITH HEALTHY CROPS</div>
+              <h1>{page === 'Disease Library' ? 'A little knowledge. A healthier field.' : page === 'Disease Detector' ? 'Let’s take a closer look.' : page === 'AI Assistant' ? 'A growing companion.' : 'A healthier crop starts here.'}</h1>
+              <p>{page === 'Disease Library' ? 'Explore common symptoms, treatment options, and ways to prevent disease.' : 'Spot the signs early. Understand the problem. Grow with confidence.'}</p>
+            </div>
+            <span className="nature-tag"><span /> Rooted in better growing</span>
+          </div>
+
+          {page === 'Overview' && (
+            <>
+              <Marquee items={['Leaf health', 'Soil care', 'AI scouting', 'Better yields', 'Field notes', 'Healthy roots']} />
+
+              <section className="hero">
+                <img src="/.netlify/images?url=/img/crop-hero.png&w=1500&fm=webp" alt="Sunlight falling on fresh green tomato leaves" />
+                <div className="hero-shade" />
+                <div className="hero-copy">
+                  <span className="hero-tag"><Sparkles size={14} /> POWERED BY AI. INSPIRED BY NATURE.</span>
+                  <h2>Small signs.<br />Big possibilities.</h2>
+                  <p>Turn a photo into a first step toward healthier crops. Get insight and a clear path forward.</p>
+                  <button className="light-button" onClick={() => setPage('Disease Detector')}>
+                    Check your crop <ArrowRight size={17} />
+                  </button>
+                </div>
+                <div className="hero-note">
+                  <span><Leaf size={17} /></span>
+                  <div>
+                    Healthy plants. Happy harvests.
+                    <small>A little attention makes a world of difference.</small>
+                  </div>
+                </div>
+              </section>
+
+              <div className="feature-strip">
+                <div>
+                  <span><ScanLine size={18} /></span>
+                  <section>
+                    <strong>A photo is all it takes</strong>
+                    <p>Simple, image-based assessment</p>
+                  </section>
+                </div>
+                <div>
+                  <span><Leaf size={18} /></span>
+                  <section>
+                    <strong>From insight to action</strong>
+                    <p>Practical care & prevention guidance</p>
+                  </section>
+                </div>
+                <div>
+                  <span><MessageCircle size={18} /></span>
+                  <section>
+                    <strong>A companion, anytime</strong>
+                    <p>Ask your personal AI assistant</p>
+                  </section>
+                </div>
+              </div>
+            </>
+          )}
+
+          {page !== 'Disease Library' && (
+            <div className="work-grid">
+              <section className="scanner-panel panel">
+                <div className="section-heading">
+                  <div>
+                    <span className="section-kicker">LET’S GET TO THE ROOT OF IT</span>
+                    <h2>Check your crop’s health <Leaf size={20} /></h2>
+                    <p>Upload a clear photo. We’ll help you understand what’s happening.</p>
+                  </div>
+                  <span className="step-label">001 / UPLOAD</span>
+                </div>
+
+                <div className="scan-fields">
+                  <label htmlFor="crop">Select your crop</label>
+                  <div className="select-wrap">
+                    <select id="crop" defaultValue="Auto-detect crop">
+                      <option>Auto-detect crop</option>
+                      <option>Tomato</option>
+                      <option>Rice</option>
+                      <option>Maize</option>
+                      <option>Wheat</option>
+                    </select>
+                    <ChevronRight size={16} />
+                  </div>
+                </div>
+
+                <div className="upload-box">
+                  <input type="file" accept="image/*" hidden />
+                  <div className="upload-icon"><ImagePlus size={28} /></div>
+                  <h3>Drop your crop photo here</h3>
+                  <p>or <button className="inline-link">browse files</button> to upload</p>
+                  <small>JPEG, PNG, or WEBP up to 4 MB</small>
+                </div>
+
+                <button className="primary-button" onClick={() => setPage('Disease Detector')}>
+                  <ScanLine size={18} /> Analyze crop
+                </button>
+              </section>
+
+              <aside className="right-column">
+                <section className="assistant-card">
+                  <div className="assistant-top">
+                    <span className="assistant-icon"><Sparkles size={22} /></span>
+                    <span className="available"><span /> HERE TO HELP</span>
+                  </div>
+                  <h2>A growing companion.<br />Just for you.</h2>
+                  <p>From unusual leaf spots to everyday crop care, your AI assistant is here to help.</p>
+                  <button className="text-button" onClick={() => setChat(true)}>
+                    Let’s talk crops <ArrowRight size={16} />
+                  </button>
+                </section>
+
+                <section className="tips-card panel">
+                  <div className="tips-heading">
+                    <span><Sun size={18} /></span>
+                    <strong>A field note</strong>
+                    <span className="tiny-label">GROW SMARTER</span>
+                  </div>
+                  <h3>Catch it early. Keep it healthy.</h3>
+                  <p>Check the undersides of leaves, too. Early signs of pests and disease often hide there.</p>
+                  <button className="text-button" onClick={() => setChat(true)}>
+                    More growing tips <ArrowRight size={15} />
+                  </button>
+                </section>
+              </aside>
+            </div>
+          )}
+
+          {page === 'Disease Library' && (
+            <section className="library-section">
+              <div className="library-heading">
+                <div>
+                  <span className="section-kicker">KNOW WHAT TO LOOK FOR</span>
+                  <h2>Explore the disease library</h2>
+                  <p>A little awareness goes a long way. Get to know the signs.</p>
+                </div>
+                <label className="search-field">
+                  <Search size={17} />
+                  <input aria-label="Search disease library" placeholder="Search crops or diseases" value={query} onChange={(e) => setQuery(e.target.value)} />
+                </label>
+              </div>
+
+              <div className="disease-grid">
+                {filtered.map((d) => (
+                  <button key={d.name} className="disease-card" onClick={() => setChat(true)}>
+                    <div className="crop-art">
+                      <img src={`/.netlify/images?url=/img/${d.image}.jpg&w=500&fm=webp`} alt={d.name} loading="lazy" />
+                      <span>{d.crop}</span>
+                    </div>
+                    <div className="disease-copy">
+                      <small>{d.type}</small>
+                      <h3>{d.name}<ArrowRight size={17} /></h3>
+                      <p>Signs, care & prevention</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {filtered.length === 0 && <p className="empty-state">No matching guides yet. Ask your AI assistant about this crop or disease.</p>}
+            </section>
+          )}
+        </main>
+
+        <footer>
+          <span><Sprout size={15} /> Made for the people who grow.</span>
+          <span>AI insights support, and don’t replace, local expert advice.</span>
+        </footer>
+      </div>
+
+      <button className="floating-chat" onClick={() => setChat(true)}>
+        <Sparkles size={21} />
+        <span>Ask Cropwise</span>
+        <span className="chat-dot" />
+      </button>
+
+      <Dialog open={chat} onOpenChange={setChat}>
+        <DialogContent className="chat-modal">
+          <DialogHeader>
+            <DialogTitle>
+              <span className="assistant-icon"><Sparkles size={21} /></span>
+              Your Cropwise assistant
+            </DialogTitle>
+            <DialogDescription>A little guidance for whatever’s growing.</DialogDescription>
+          </DialogHeader>
+
+          <div className="chat-messages" aria-live="polite">
+            {messages.map((message, index) => (
+              <div key={`${message.role}-${index}`} className={message.role === 'assistant' ? 'assistant-message' : 'user-message'}>
+                {message.text}
+              </div>
+            ))}
+            {chatBusy && <div className="assistant-message thinking">Finding a helpful answer…</div>}
+          </div>
+
+          <form
+            className="chat-form"
+            onSubmit={(event) => {
+              event.preventDefault()
+              void send()
+            }}
+          >
+            <input
+              aria-label="Your question"
+              placeholder="Ask anything about your crops…"
+              value={question}
+              onChange={(event) => setQuestion(event.target.value)}
+            />
+            <button type="submit" disabled={chatBusy || !question.trim()} aria-label="Send question">
+              <Send size={18} />
+            </button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={false} onOpenChange={() => undefined}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cropwise guidance</DialogTitle>
+            <DialogDescription>Helpful growing info.</DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
 }
